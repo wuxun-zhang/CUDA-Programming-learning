@@ -50,6 +50,8 @@ __global__ void matMul_opt1(const int size, const int m, const int n, const int 
 }
 
 #define TILE_SIZE (32)
+// when TILE_SIZE is 16, bank conflicts must be considered carefully
+// the common practice is add the extra one column, like sm_a[16][17]
 // blockDim: TILE_SIZE * TILE_SIZE
 // gridDim: (m+TILE_SIZE-1)/TILE_SIZE * (n+TILE_SIZE-1)/TILE_SIZE
 __global__ void matMul_opt2(const int size, const int m, const int n, const int k, const float* a, int lda, 
@@ -82,16 +84,23 @@ __global__ void matMul_opt2(const int size, const int m, const int n, const int 
 			sm_b[ty][tx] = 0.0f;
 		__syncthreads();
 
+		#pragma unroll
 		for(int j=0;j<TILE_SIZE;j++)
 			sum += sm_a[ty][j] * sm_b[j][tx];
 		__syncthreads();
-
-		if(yIndex<m && xIndex<n)
-			c[yIndex*ldc+xIndex] = sum;
 	}
 
-}
+	if(yIndex<m && xIndex<n)
+			c[yIndex*ldc+xIndex] = sum;
 
 }
+
+
+__global__ void matMul_opt3_register(const int size, const int m, const int n, const int k, const float* a, int lda, 
+	const float* b, int ldb, float* c, int ldc){
+
+}
+
+} // namespace GPU
 
 } // namespace GEMM_NOTRANS
